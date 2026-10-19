@@ -1,0 +1,68 @@
+name: DockShift
+
+options:
+  bundleIdPrefix: com.quentinsteinke
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+  xcodeVersion: "27.1"
+  groupSortPosition: top
+
+settings:
+  base:
+    # Team ID is the certificate's OU (8C5LBVCRXP), not the "(9TGC4GGJ59)" suffix in the cert name.
+    DEVELOPMENT_TEAM: 8C5LBVCRXP
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "Apple Development"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+
+targets:
+  DockShift:
+    type: application
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: DockShift/Sources
+      - path: DockShift/Resources
+    dependencies:
+      - sdk: AppIntents.framework
+      - sdk: ServiceManagement.framework
+    info:
+      path: DockShift/Info.plist
+      properties:
+        CFBundleDisplayName: DockShift
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSUIElement: true
+        LSApplicationCategoryType: public.app-category.utilities
+        NSHumanReadableCopyright: "Copyright 2026 Quentin Steinke"
+    entitlements:
+      path: DockShift/DockShift.entitlements
+      properties:
+        # Must stay unsandboxed: DockShift writes the com.apple.dock preferences and restarts the Dock.
+        com.apple.security.app-sandbox: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.quentinsteinke.DockShift
+        PRODUCT_NAME: DockShift
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_HARDENED_RUNTIME: YES
+        ENABLE_APP_SANDBOX: NO
+        COMBINE_HIDPI_IMAGES: YES
+        GENERATE_INFOPLIST_FILE: NO
+
+schemes:
+  DockShift:
+    build:
+      targets:
+        DockShift: all
+    run:
+      config: Debug
+    archive:
+      config: Release

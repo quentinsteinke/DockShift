@@ -1,0 +1,5 @@
+DockShift.xcodeproj/
+build/
+.DS_Store
+DockShift/Info.plist
+DockShift/DockShift.entitlements
