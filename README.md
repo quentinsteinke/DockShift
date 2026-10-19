@@ -6,13 +6,24 @@ Turn on your *Work* Focus and the Dock shrinks to your work apps with a work wal
 off and your normal Dock comes back. Swipe to Desktop 2 and it can have a Dock and wallpaper of its
 own, too.
 
-<p align="center"><img src="docs/screenshot-get-started.png" width="720" alt="DockShift's Get Started window"></p>
+<p align="center"><img src="docs/01-work-profile.png" width="820" alt="DockShift showing its Work profile: a focused Dock and a blue wallpaper"></p>
 
 - Lives in the menu bar; no Dock icon.
 - Uses Apple's own **Focus filters**, so it works however a Focus turns on: manually, on a
   schedule, by location, or synced from your iPhone.
 - **Per-desktop** Docks and wallpapers that follow your four-finger swipes.
 - Puts your own wallpaper back when a rule stops applying, and has a one-click **Restore Original**.
+
+<table>
+  <tr>
+    <td><img src="docs/02-desktops.png" alt="Desktops page: pick a profile for each desktop"></td>
+    <td><img src="docs/03-focus.png" alt="Focus Modes page: link a Focus to a profile with the DockShift Focus filter"></td>
+  </tr>
+  <tr>
+    <td align="center">Give each desktop its own profile</td>
+    <td align="center">Link Focus modes with a Focus filter</td>
+  </tr>
+</table>
 
 ## Requirements
 

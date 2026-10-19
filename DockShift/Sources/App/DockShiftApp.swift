@@ -22,7 +22,7 @@ struct DockShiftApp: App {
             MainWindow()
                 .onDisappear { AppActivation.windowDidClose() }
         }
-        .defaultSize(width: 860, height: 600)
+        .defaultSize(width: 960, height: 720)
         .defaultLaunchBehavior(.suppressed)   // macOS 15+
         .restorationBehavior(.disabled)       // macOS 15+
         .handlesExternalEvents(matching: [])  // an intent / user activity must never spawn or raise it
