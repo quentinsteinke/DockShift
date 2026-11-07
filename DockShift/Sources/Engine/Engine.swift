@@ -147,6 +147,7 @@ struct CreatedProfile: Sendable {
 
     // Lifecycle
     @ObservationIgnored private var launchReady = false
+    @ObservationIgnored private var preparingForUpdate = false
     @ObservationIgnored private var sessionActive = true
     @ObservationIgnored private var missedWhileInactive: ReconcileReason?
     @ObservationIgnored private var muteConfigChanges = 0
@@ -160,6 +161,26 @@ struct CreatedProfile: Sendable {
     private init() {}
 
     // MARK: - Lifecycle
+
+    /// Quiesce transient work without changing the user's persisted Pause setting.
+    func prepareForUpdate() async {
+        preparingForUpdate = true
+        for task in delayed.values { task.cancel() }
+        delayed.removeAll()
+        cancelPendingDockWork() // an apply already writing the Dock must finish normally
+        await dockTask?.value
+        wallpaperTask?.cancel()
+        await wallpaperTask?.value
+        lateFixupTask?.cancel()
+        saveKeptHandEdits("installing an update")
+    }
+
+    func resumeAfterUpdateCycle() {
+        guard preparingForUpdate else { return }
+        preparingForUpdate = false
+        launchReady = true // preparation may have canceled the first-launch debounce
+        reconcile(.manual)
+    }
 
     func start() {
         guard !started else { return }
@@ -683,6 +704,7 @@ struct CreatedProfile: Sendable {
     // MARK: - Reconcile
 
     func reconcile(_ reason: ReconcileReason) {
+        guard !preparingForUpdate else { return }
         guard started else { return }
         if originalDockPending, launchReady, sessionActive, !store.settings.paused { captureOriginalDock() }
         let config = store.config
@@ -715,6 +737,7 @@ struct CreatedProfile: Sendable {
     // MARK: - Dock pass
 
     private func requestDockPass(_ reason: ReconcileReason) {
+        guard !preparingForUpdate else { return }
         if dockApplyInFlight {
             pendingDockReason = longerDwell(pendingDockReason, reason)
             Log.engine.debug("dock: apply in flight; re-checking when it finishes")
@@ -1146,6 +1169,7 @@ struct CreatedProfile: Sendable {
     /// bookkeeping right after its write, so a cut-short pass leaves consistent state).
     @discardableResult
     private func enqueueWallpaperWork(_ body: @escaping @MainActor @Sendable (Engine) async -> Void) -> Task<Void, Never> {
+        guard !preparingForUpdate else { return Task {} }
         let previous = wallpaperTask
         previous?.cancel()
         cancelDelayed("wallpaperRecheck")        // the newer pass checks those slots itself
@@ -1346,6 +1370,7 @@ struct CreatedProfile: Sendable {
 
     private func debounce(_ key: String, after delay: Duration,
                           _ body: @escaping @MainActor @Sendable (Engine) -> Void) {
+        guard !preparingForUpdate else { return }
         delayed[key]?.cancel()
         delayed[key] = Task { [weak self] in
             try? await Task.sleep(for: delay)

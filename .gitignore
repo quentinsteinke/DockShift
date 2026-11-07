@@ -3,3 +3,6 @@ build/
 .DS_Store
 DockShift/Info.plist
 DockShift/DockShift.entitlements
+__pycache__/
+build-*.log
+fixture-prepare.log

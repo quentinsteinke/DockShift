@@ -8,6 +8,7 @@ struct MenuContent: View {
     @Environment(\.openWindow) private var openWindow
     private let engine = Engine.shared
     private let store = Store.shared
+    @ObservedObject private var updates = UpdateService.shared
 
     var body: some View {
         statusRows
@@ -52,6 +53,9 @@ struct MenuContent: View {
             .disabled(!store.hasOriginal && store.wallpaperSlots.isEmpty)
 
         Divider()
+
+        Button("Check for Updates…") { updates.checkForUpdates() }
+            .disabled(!updates.canCheckForUpdates)
 
         Button("Quit DockShift") { NSApp.terminate(nil) }
             .keyboardShortcut("q")

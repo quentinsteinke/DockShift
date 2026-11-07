@@ -82,7 +82,17 @@ struct StoreWarning: Identifiable, Hashable, Sendable {
     }
 
     nonisolated static var defaultBaseDirectory: URL {
-        URL.applicationSupportDirectory.appending(path: "DockShift", directoryHint: .isDirectory)
+        #if DEBUG
+        if Bundle.main.bundleIdentifier == "com.quentinsteinke.DockShift.UpdaterTest" {
+            return URL(filePath: "/tmp/DockShift-UpdaterTest-\(NSUserName())", directoryHint: .isDirectory)
+        }
+        // Local UI/update fixtures can use the real app without touching installed profiles.
+        if let path = ProcessInfo.processInfo.environment["DOCKSHIFT_TEST_DATA_DIRECTORY"],
+           path.hasPrefix("/") {
+            return URL(filePath: path, directoryHint: .isDirectory)
+        }
+        #endif
+        return URL.applicationSupportDirectory.appending(path: "DockShift", directoryHint: .isDirectory)
     }
 
     private var configURL: URL { Self.configURL(in: baseDirectory) }

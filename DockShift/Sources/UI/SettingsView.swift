@@ -6,6 +6,7 @@ import AppKit
 struct SettingsView: View {
     private let store = Store.shared
     private let engine = Engine.shared
+    @ObservedObject private var updates = UpdateService.shared
     @State private var confirmRestore = false
     @State private var showLogHelp = false
 
@@ -67,6 +68,20 @@ struct SettingsView: View {
             }
 
             troubleshootingSection
+
+            Section("Updates") {
+                Toggle("Automatically check for updates", isOn: Binding(
+                    get: { updates.automaticallyChecksForUpdates },
+                    set: { updates.setAutomaticChecks($0) }))
+                    .disabled(updates.configurationProblem != nil)
+                Text("DockShift checks daily and asks before downloading and installing an update.")
+                    .foregroundStyle(.secondary)
+                Button("Check for Updates…") { updates.checkForUpdates() }
+                    .disabled(!updates.canCheckForUpdates)
+                if let problem = updates.configurationProblem {
+                    Text(problem).foregroundStyle(.secondary)
+                }
+            }
 
             Section("About") {
                 LabeledContent("Version", value: Self.version)

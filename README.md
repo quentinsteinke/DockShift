@@ -125,7 +125,19 @@ Settings worth knowing (in **Settings** and on the **Desktops** page):
   use private macOS APIs. They're loaded at runtime, so if a future macOS removes them, the Focus
   features keep working and DockShift says that desktop rules are unavailable.
 - **Not sandboxed.** DockShift changes the Dock's settings (`com.apple.dock`), which a sandboxed app can't.
-  It makes no network connections.
+  Configured updater builds contact GitHub to check for updates and download an update only after you
+  choose to install it. Update checks do not send your profiles or system statistics.
+
+## Updates
+
+Starting with the updater-enabled release, DockShift checks for updates daily while it is running.
+It shows an update offer, then downloads, verifies, installs and relaunches when you choose to update.
+You can also choose **Check for Updates…** in the menu or Settings. Turn off automatic checks in
+Settings if you prefer to check manually. Your profiles, saved Docks and wallpapers stay in
+`~/Library/Application Support/DockShift` across updates.
+
+The existing v0.1.0 release has no updater. Install the first updater-enabled release manually once.
+Source builds without a configured signing key show that updates are not configured.
 
 ## Troubleshooting
 
@@ -151,13 +163,16 @@ Built with Xcode 27 and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew
 ```bash
 git clone https://github.com/quentinsteinke/DockShift.git
 cd DockShift
-ADHOC=1 scripts/build.sh Release        # or DEVELOPMENT_TEAM=<your team ID> scripts/build.sh
-open build/Build/Products/Release/DockShift.app
+scripts/build.sh Release        # or DEVELOPMENT_TEAM=<your team ID> scripts/build.sh
+open /tmp/DockShift-build/Build/Products/Release/DockShift.app
 ```
 
-- `scripts/release.sh` builds the universal, ad-hoc signed `.dmg` and `.zip` published on the Releases page.
+- `scripts/release.sh` prepares signed, notarized universal `.dmg` and `.zip` files and a signed update
+  feed. It does not publish them. See [Update release setup](docs/updates.md).
 - `scripts/install.sh` builds with the team in `project.yml` and installs to `/Applications`.
 - Run it from `/Applications`: the Focus filter and the login item bind to the copy macOS has registered.
+- `scripts/test-updates.sh` checks update configuration. Use `scripts/prepare-update-fixture.sh` for
+  isolated macOS installation tests, as described in the update setup guide.
 
 | Path | What |
 |---|---|

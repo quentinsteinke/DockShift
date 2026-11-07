@@ -6,16 +6,17 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister
+export DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-/tmp/DockShift-build}"
 
 zsh scripts/build.sh Release
-BUILT="$PWD/build/Build/Products/Release/DockShift.app"
+BUILT="$DERIVED_DATA_PATH/Build/Products/Release/DockShift.app"
 
 osascript -e 'quit app "DockShift"' 2>/dev/null || true
 sleep 1
 rm -rf /Applications/DockShift.app
 ditto "$BUILT" /Applications/DockShift.app
 for config in Debug Release; do
-  "$LSREGISTER" -u "$PWD/build/Build/Products/$config/DockShift.app" 2>/dev/null || true
+  "$LSREGISTER" -u "$DERIVED_DATA_PATH/Build/Products/$config/DockShift.app" 2>/dev/null || true
 done
 "$LSREGISTER" -f /Applications/DockShift.app
 

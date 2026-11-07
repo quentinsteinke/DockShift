@@ -1,0 +1,5 @@
+// Public configuration only. Generate the permanent key using Sparkle's generate_keys.
+// Private keys belong in Keychain or the release runner's secret store, never here.
+// $() prevents xcconfig from treating // as a comment.
+DOCKSHIFT_UPDATE_FEED_URL = https:/$()/github.com/quentinsteinke/DockShift/releases/latest/download/appcast.xml
+DOCKSHIFT_UPDATE_PUBLIC_KEY = HYtgTjwq7u37YRQfjhGVtEluheRtriFImBznAjBIHYo=

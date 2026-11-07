@@ -95,6 +95,7 @@ enum AppActivation {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Engine.shared.start()
+        UpdateService.shared.start()
     }
 
     /// Launching DockShift again while it runs (Finder, Spotlight) opens the window — the only way
