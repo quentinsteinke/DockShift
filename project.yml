@@ -24,12 +24,13 @@ settings:
     DEVELOPMENT_TEAM: 8C5LBVCRXP
     CODE_SIGN_STYLE: Automatic
     CODE_SIGN_IDENTITY: "Apple Development"
-    MARKETING_VERSION: "0.2.0"
-    CURRENT_PROJECT_VERSION: "2"
+    MARKETING_VERSION: "0.3.0"
+    CURRENT_PROJECT_VERSION: "3"
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
-    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
     DEAD_CODE_STRIPPING: YES
+    ALWAYS_SEARCH_USER_PATHS: NO
   configs:
     Debug:
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) DEBUG"
@@ -46,6 +47,18 @@ targets:
       - package: Sparkle
       - sdk: AppIntents.framework
       - sdk: ServiceManagement.framework
+    postBuildScripts:
+      - name: Embed Rune renderer
+        script: |
+          mkdir -p "$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH"
+          cp "$SRCROOT/build/rune/libdockshift_ui.dylib" "$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH/"
+          if [ "$CODE_SIGNING_ALLOWED" != NO ] && [ -n "$EXPANDED_CODE_SIGN_IDENTITY" ]; then
+            codesign --force --sign "$EXPANDED_CODE_SIGN_IDENTITY" --options runtime "$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH/libdockshift_ui.dylib"
+          fi
+        inputFiles:
+          - $(SRCROOT)/build/rune/libdockshift_ui.dylib
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(FRAMEWORKS_FOLDER_PATH)/libdockshift_ui.dylib
     info:
       path: DockShift/Info.plist
       properties:
@@ -79,6 +92,8 @@ targets:
         COMBINE_HIDPI_IMAGES: YES
         GENERATE_INFOPLIST_FILE: NO
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+        LIBRARY_SEARCH_PATHS: "$(inherited) $(SRCROOT)/build/rune"
+        OTHER_LDFLAGS: "$(inherited) -ldockshift_ui"
 
 schemes:
   DockShift:

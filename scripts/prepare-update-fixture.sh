@@ -9,11 +9,12 @@ mkdir -p "$ROOT"
 swiftc -parse-as-library -module-cache-path "$ROOT/modules" tests/MakeUpdateTestKey.swift -o "$ROOT/make-key"
 "$ROOT/make-key" "$ROOT/private-key" "$ROOT/public-key"
 PUBLIC_KEY=$(cat "$ROOT/public-key")
+scripts/build-rune.sh
 xcodegen generate --quiet
 xcodebuild -project DockShift.xcodeproj -scheme DockShift -configuration Debug \
   -derivedDataPath "$ROOT/derived" -destination 'generic/platform=macOS' \
   PRODUCT_BUNDLE_IDENTIFIER=com.quentinsteinke.DockShift.UpdaterTest \
-  DOCKSHIFT_UPDATE_PUBLIC_KEY="$PUBLIC_KEY" \
+  ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=YES DOCKSHIFT_UPDATE_PUBLIC_KEY="$PUBLIC_KEY" \
   DOCKSHIFT_UPDATE_FEED_URL=http://127.0.0.1:8765/appcast.xml build -quiet
 mkdir -p "$ROOT/installed" "$ROOT/new" "$ROOT/feed"
 ditto "$ROOT/derived/Build/Products/Debug/DockShift.app" "$ROOT/new/DockShift.app"
@@ -31,7 +32,8 @@ ditto "$ROOT/new/DockShift.app" "$ROOT/installed/DockShift.app"
 codesign --force --sign "$IDENTITY" --options runtime "$ROOT/installed/DockShift.app"
 codesign --verify --deep --strict "$ROOT/installed/DockShift.app"
 codesign --verify --deep --strict "$ROOT/new/DockShift.app"
-ditto -c -k --keepParent "$ROOT/new/DockShift.app" "$ROOT/feed/DockShift-0.2.0.zip"
+NEW_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$ROOT/new/DockShift.app/Contents/Info.plist")
+ditto -c -k --keepParent "$ROOT/new/DockShift.app" "$ROOT/feed/DockShift-$NEW_VERSION.zip"
 TOOLS="$ROOT/derived/SourcePackages/artifacts/sparkle/Sparkle/bin"
 "$TOOLS/generate_appcast" --ed-key-file "$ROOT/private-key" --maximum-deltas 0 \
   --download-url-prefix http://127.0.0.1:8765/ "$ROOT/feed"

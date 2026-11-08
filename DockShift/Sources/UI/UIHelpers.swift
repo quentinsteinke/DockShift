@@ -1,7 +1,6 @@
 // UIHelpers.swift — DockShift
-// Small views and wording shared by the menu and the main window, so both describe state the
+// Wording shared by the menu and the main window, so both describe state the
 // same way.
-import SwiftUI
 import AppKit
 import ImageIO
 
@@ -52,7 +51,8 @@ enum UIText {
     /// "Work · Focus", or a plain explanation when nothing manages the channel.
     static func channel(_ channel: ChannelResolution?, engine: Engine) -> String {
         guard let channel, channel.profileID != nil else { return "left as it is" }
-        return "\(engine.profileName(channel.profileID)) · \(engine.describe(channel.source))"
+        let name = channel.profileID.flatMap { Store.shared.profile($0)?.name } ?? engine.profileName(channel.profileID)
+        return "\(name) · \(engine.describe(channel.source))"
     }
 
     /// Text + SF Symbol for a Dock activity worth showing; nil when idle.
@@ -116,7 +116,7 @@ enum SystemLinks {
     }
 }
 
-// MARK: - Alerts (for the menu, which can't host SwiftUI dialogs)
+// MARK: - Native alerts
 
 @MainActor
 enum Alerts {
@@ -140,146 +140,4 @@ enum Alerts {
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
     }
-}
-
-// MARK: - Store warnings
-
-/// "Show in Finder" / "Dismiss" for a problem DockShift found in its own files; shared by the
-/// status banner, Get Started and Settings.
-struct StoreWarningButtons: View {
-    let warning: StoreWarning
-
-    var body: some View {
-        if let file = warning.file {
-            Button("Show in Finder") { SystemLinks.reveal(file) }
-                .help(file.lastPathComponent)
-        }
-        if warning.isDismissible {
-            Button("Dismiss") { Store.shared.dismissWarning(warning.kind) }
-        }
-    }
-}
-
-// MARK: - Step row (onboarding / setup instructions)
-
-struct StepRow<Accessory: View>: View {
-    let number: Int
-    let title: String
-    let detail: String
-    var done = false
-    @ViewBuilder var accessory: Accessory
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Group {
-                if done {
-                    Image(systemName: "checkmark.circle.fill").symbolRenderingMode(.multicolor)
-                } else {
-                    Image(systemName: "\(number).circle").foregroundStyle(.tint)
-                }
-            }
-            .font(.title2)
-            .frame(width: 26)
-            .accessibilityLabel(done ? "Step \(number), done" : "Step \(number)")
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.headline)
-                Text(detail)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                accessory.padding(.top, 2)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-extension StepRow where Accessory == EmptyView {
-    init(number: Int, title: String, detail: String, done: Bool = false) {
-        self.init(number: number, title: title, detail: detail, done: done) { EmptyView() }
-    }
-}
-
-/// Small rounded "Current" style tag.
-struct TagText: View {
-    let text: String
-    init(_ text: String) { self.text = text }
-
-    var body: some View {
-        Text(text)
-            .font(.caption.weight(.medium))
-            .foregroundStyle(.tint)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 1)
-            .background(.tint.opacity(0.15), in: Capsule())
-    }
-}
-
-// MARK: - Wallpaper thumbnail
-
-/// Aspect-fill 16:10 preview of an image file. Decoding a full-size wallpaper (often a 6K HEIC)
-/// on the main thread would stall the window, so a downsampled thumbnail is made off the main actor.
-struct WallpaperThumbnail: View {
-    let url: URL?
-    @State private var image: NSImage?
-    @State private var failed = false
-
-    var body: some View {
-        Color.clear
-            .aspectRatio(16.0 / 10.0, contentMode: .fit)
-            .background(.quaternary)
-            .overlay {
-                if let image {
-                    Image(nsImage: image).resizable().scaledToFill()
-                } else if url == nil || failed {
-                    Image(systemName: url == nil ? "photo" : "exclamationmark.triangle")
-                        .font(.largeTitle)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ProgressView().controlSize(.small)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(.separator))
-            .task(id: url) {
-                image = nil
-                failed = false
-                guard let url else { return }
-                let thumb = await Task.detached(priority: .userInitiated) { Thumbnail.make(url, maxPixel: 800) }.value
-                guard !Task.isCancelled else { return }
-                if let cg = thumb?.image {
-                    image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
-                } else {
-                    failed = true
-                }
-            }
-    }
-}
-
-private struct Thumbnail: @unchecked Sendable {   // CGImage is immutable; safe to hand across actors
-    let image: CGImage
-
-    static func make(_ url: URL, maxPixel: Int) -> Thumbnail? {
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixel,
-        ]
-        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
-        return Thumbnail(image: image)
-    }
-}
-
-// MARK: - Color bridging
-
-/// Namespaced (not an extension on the shared RGBColor) so it can't collide with other files.
-enum ColorBridge {
-    static func rgb(_ color: Color) -> RGBColor {
-        let ns = NSColor(color).usingColorSpace(.sRGB) ?? .black
-        return RGBColor(red: Double(ns.redComponent), green: Double(ns.greenComponent), blue: Double(ns.blueComponent))
-    }
-
-    static func color(_ rgb: RGBColor) -> Color { Color(.sRGB, red: rgb.red, green: rgb.green, blue: rgb.blue) }
 }

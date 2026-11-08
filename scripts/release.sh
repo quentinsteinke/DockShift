@@ -16,6 +16,7 @@ OUT="${RELEASE_OUTPUT:-$PWD/build/release-$VERSION-$(date +%Y%m%d-%H%M%S)}"
 STAGE=$(mktemp -d /tmp/DockShift-release.XXXXXX)
 trap 'rm -rf "$STAGE"' EXIT
 
+scripts/build-rune.sh universal
 xcodegen generate --quiet
 xcodebuild -project DockShift.xcodeproj -scheme DockShift -configuration Release \
   -derivedDataPath "$DERIVED" -destination 'generic/platform=macOS' \
@@ -39,6 +40,8 @@ codesign --verify --deep --strict "$APP"
 test -d "$APP/Contents/Resources/Metadata.appintents"
 [[ "$(lipo -archs "$APP/Contents/MacOS/DockShift")" == *arm64* ]]
 [[ "$(lipo -archs "$APP/Contents/MacOS/DockShift")" == *x86_64* ]]
+[[ "$(lipo -archs "$APP/Contents/Frameworks/libdockshift_ui.dylib")" == *arm64* ]]
+[[ "$(lipo -archs "$APP/Contents/Frameworks/libdockshift_ui.dylib")" == *x86_64* ]]
 
 # Notarize and staple before making the update archive: its signature covers the final bytes.
 ditto -c -k --keepParent "$APP" "$STAGE/notarize.zip"

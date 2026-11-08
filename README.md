@@ -6,7 +6,10 @@ Turn on your *Work* Focus and the Dock shrinks to your work apps with a work wal
 off and your normal Dock comes back. Swipe to Desktop 2 and it can have a Dock and wallpaper of its
 own, too.
 
-<p align="center"><img src="docs/01-work-profile.png" width="820" alt="DockShift showing its Work profile: a focused Dock and a blue wallpaper"></p>
+DockShift 0.3.0 uses [Rune](https://github.com/anomalyco/rune) for the main window,
+Profile Studio, desktop rules, settings, and menu-bar controls. Screenshots below use sample profiles.
+
+<p align="center"><img src="docs/rune/overview-light.png" width="920" alt="DockShift Rune overview with wallpaper-led desktop previews and profiles"></p>
 
 - Lives in the menu bar; no Dock icon.
 - Uses Apple's own **Focus filters**, so it works however a Focus turns on: manually, on a
@@ -16,12 +19,12 @@ own, too.
 
 <table>
   <tr>
-    <td><img src="docs/02-desktops.png" alt="Desktops page: pick a profile for each desktop"></td>
-    <td><img src="docs/03-focus.png" alt="Focus Modes page: link a Focus to a profile with the DockShift Focus filter"></td>
+    <td><img src="docs/rune/profiles-light.png" alt="Rune profile gallery with live Dock previews"></td>
+    <td><img src="docs/rune/studio-dark.png" alt="Rune Profile Studio in dark mode with a visual Dock editor"></td>
   </tr>
   <tr>
-    <td align="center">Give each desktop its own profile</td>
-    <td align="center">Link Focus modes with a Focus filter</td>
+    <td align="center">Your profiles at a glance</td>
+    <td align="center">Edit the Dock and wallpaper together</td>
   </tr>
 </table>
 
@@ -36,14 +39,8 @@ own, too.
 2. Open it and drag **DockShift** into **Applications**.
 3. Open DockShift from Applications.
 
-**First launch:** DockShift is free and open source, but it isn't notarized by Apple, so macOS blocks
-it the first time:
-
-1. Open DockShift. macOS says it can't verify the app — click **Done**.
-2. Go to **System Settings › Privacy & Security**, scroll down to the message about DockShift and click
-   **Open Anyway**, then confirm with your password.
-
-Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/DockShift.app`
+Releases are signed with Developer ID and notarized by Apple. Users on 0.2.0 can choose
+**Check for Updates…** to install 0.3.0. Automatic checks also offer the update.
 
 DockShift appears in the menu bar (a small Dock icon). On first launch it saves your current Dock as
 the **Default** profile and an untouched **Original** copy. Nothing on screen changes until you add a rule.
@@ -59,11 +56,13 @@ A **profile** is a Dock layout plus a wallpaper. Either half can be left empty, 
 (or Default) fills it in.
 
 - Arrange your Dock (and wallpaper) the way you want them, then choose
-  **Create Profile from Current Setup…** (or **New Profile** in the sidebar).
+  **New profile** in the sidebar and leave **Start with my current setup** enabled.
 - On a profile's page you can **Capture Current Dock**, **Choose Image…** for the wallpaper,
   **Use Current Wallpaper**, and set the placement.
-- To build a Dock for a profile: open it, click **Use Now**, arrange the Dock, then click
-  **Capture Current Dock**. Click **Stop Using** when you're done.
+- In **Profile Studio**, select an app to move it left or right or remove it. **Add app** opens
+  the Applications picker. These edits change the saved profile; using that profile applies them.
+- You can also click **Use profile**, arrange the real Dock, then click **Capture current Dock**.
+  Click **Stop using** when you're done.
 
 ### 2. Link Focus modes
 
@@ -94,11 +93,12 @@ The menu bar menu shows what's active (Focus, desktop, and where the Dock and wa
 
 | Item | What it does |
 |---|---|
-| **Apply Profile** | Use a profile right now; it stays until the Focus next changes. |
-| **Save Current Dock to Profile** | Save the Dock as it is now into the profile that's showing. |
-| **Pause DockShift** | Stop switching anything until you resume. |
-| **Restore Original Dock & Wallpaper…** | Put back the Dock from first launch and every wallpaper DockShift replaced, then pause. |
-| **Open DockShift…** | The main window. |
+| **A profile button** | Use that profile until the Focus next changes. |
+| **Capture current Dock** | Save the Dock into the profile that's showing. |
+| **Follow Focus and desktop rules** | Clear a manual profile choice. |
+| **Pause switching** | Stop switching anything until you resume. |
+| **Restore original…** | Put back the saved original Dock and wallpapers, then pause. |
+| **Open DockShift** | The main window. |
 
 Settings worth knowing (in **Settings** and on the **Desktops** page):
 
@@ -152,13 +152,16 @@ Source builds without a configured signing key show that updates are not configu
 
 ## Uninstall
 
-1. Menu › **Restore Original Dock & Wallpaper…**
+1. Menu bar controls › **Restore original…**
 2. Remove DockShift's filter from each Focus in **System Settings › Focus**.
 3. Quit DockShift, delete it from Applications, and delete `~/Library/Application Support/DockShift`.
 
 ## Build from source
 
-Built with Xcode 27 and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
+Build with Xcode 27, [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`),
+and [rustup](https://rustup.rs). The build helper selects Rust 1.99.1 and builds the pinned Rune
+revision into an embedded dylib before compiling the Swift host. Local builds target the current
+Mac; the release helper builds both Apple silicon and Intel slices.
 
 ```bash
 git clone https://github.com/quentinsteinke/DockShift.git
@@ -173,6 +176,15 @@ open /tmp/DockShift-build/Build/Products/Release/DockShift.app
 - Run it from `/Applications`: the Focus filter and the login item bind to the copy macOS has registered.
 - `scripts/test-updates.sh` checks update configuration. Use `scripts/prepare-update-fixture.sh` for
   isolated macOS installation tests, as described in the update setup guide.
+- `scripts/test-rune.sh` runs interaction tests and generates screenshots, element trees, and
+  a short motion demo under `build/rune-review/final`. These use synthetic profiles and change
+  no desktop settings. Video generation uses `ffmpeg` when installed.
+- `scripts/test-wallpapers.sh` verifies baseline capture and delayed verification with service doubles.
+- The renderer can run without the app: `build/rune-target/release/dockshift-preview`.
+  `--scene studio-dark --snap /tmp/studio.png` renders a screen headlessly.
+- `scripts/run-rune-preview.sh` builds and opens a paused native preview with disposable sample
+  profiles and a separate bundle identifier. The installed app's profiles and preferences remain
+  separate. Resuming this preview enables real Dock and wallpaper switching.
 
 | Path | What |
 |---|---|
@@ -183,7 +195,9 @@ open /tmp/DockShift-build/Build/Products/Release/DockShift.app
 | `DockShift/Sources/Services/FocusRouter.swift` | Focus filter events, Shortcuts and manual choices |
 | `DockShift/Sources/Intents/Intents.swift` | The Focus filter and Shortcuts action |
 | `DockShift/Sources/Model/` | Data types, storage, rule resolution |
-| `DockShift/Sources/UI/` | Menu bar menu and main window |
+| `RuneUI/src/view/` | Rune screens, profile previews, controls and dialogs |
+| `DockShift/Sources/UI/RuneHost.swift` | Metal hosting, native input and accessibility |
+| `DockShift/Sources/UI/RuneBridge.swift` | Value snapshots and commands to the Swift engine |
 
 ## License
 

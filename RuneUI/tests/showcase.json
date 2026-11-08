@@ -1,0 +1,7 @@
+{"events":[
+  {"t":0.2,"type":"tap","key":"appearance","hold":0.05},
+  {"t":0.9,"type":"tap","key":"sidebar-work","hold":0.05},
+  {"t":1.8,"type":"tap","key":"edit-tile-1","hold":0.05},
+  {"t":2.6,"type":"tap","key":"nav-profiles","hold":0.05},
+  {"t":3.3,"type":"tap","key":"appearance","hold":0.05}
+]}

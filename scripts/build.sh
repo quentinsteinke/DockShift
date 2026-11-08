@@ -19,9 +19,10 @@ elif [[ -n "${DEVELOPMENT_TEAM:-}" ]]; then
   SIGNING=(DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM")
 fi
 
+scripts/build-rune.sh "${RUNE_BUILD_ARCHS:-native}"
 xcodegen generate --quiet
 xcodebuild -project DockShift.xcodeproj -scheme DockShift -configuration "$CONFIG" \
-  -derivedDataPath "$DERIVED" "${SIGNING[@]}" build -quiet
+  -derivedDataPath "$DERIVED" "${SIGNING[@]}" ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=YES build -quiet
 BUILT="$DERIVED/Build/Products/$CONFIG/DockShift.app"
 
 # Xcode registers every build with LaunchServices. Next to an installed copy, a registered build

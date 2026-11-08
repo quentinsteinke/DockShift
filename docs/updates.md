@@ -61,7 +61,7 @@ Run `scripts/test-updates.sh` for configuration checks, including rejection of H
 embedded credentials, missing or invalid keys, and missing signature requirements.
 
 `scripts/prepare-update-fixture.sh` builds two disposable copies with the real DockShift UI and
-Sparkle, versions 0.1.0 and 0.2.0. It generates a separate test key in a mode-0600 file under `/tmp`,
+Sparkle, versions 0.1.0 and the current project version. It generates a separate test key in a mode-0600 file under `/tmp`,
 signs a local feed and verifies it. It does not change the permanent Keychain key. Each run needs a
 new `UPDATE_TEST_ROOT` directory, and it refuses to overwrite an existing installed fixture.
 

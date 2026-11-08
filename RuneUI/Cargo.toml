@@ -1,0 +1,27 @@
+[package]
+name = "dockshift-ui"
+version = "0.3.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+name = "dockshift_ui"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "dockshift-preview"
+path = "src/main.rs"
+
+[dependencies]
+rune = { git = "https://github.com/anomalyco/rune", rev = "a7f276c3630f85a06a0230295da4d2bd172d8d3b", default-features = false, features = ["metal-backend", "svg"] }
+rune-kit = { git = "https://github.com/anomalyco/rune", rev = "a7f276c3630f85a06a0230295da4d2bd172d8d3b" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.dev]
+debug = 0
+
+[profile.release]
+codegen-units = 16
+incremental = true
+strip = "none"
