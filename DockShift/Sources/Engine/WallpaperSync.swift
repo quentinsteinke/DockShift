@@ -69,19 +69,31 @@ final class WallpaperSync {
         var report = WallpaperSyncReport()
         guard !Task.isCancelled, let slots = slots(in: snapshot) else { return report }
         if snapshot != nil { prune(keeping: slots) }
-        var wanted: [String: WallpaperChoice?] = [:]
+        var wanted: [String: WallpaperChoice] = [:]
+        for key in Set(slots.map(\.ruleKey)) {
+            if let choice = desired(key), store.wallpaperFileExists(choice) { wanted[key] = choice }
+        }
+        // The first per-Space write can replace the global picture before macOS splits its
+        // shared wallpaper into individual desktops. Read and persist every affected baseline
+        // before issuing any write. The pending records also survive cancellation or a crash
+        // between slots, so collateral changes can still be put back on the next pass.
+        var preparedBaselines: Set<String> = []
+        if let firstWanted = slots.compactMap({ wanted[$0.ruleKey] }).first {
+            let wasShared = service.showOnAllSpaces() == true
+            for slot in slots where store.wallpaperSlots[slot.key] == nil && reachable(slot) {
+                guard let choice = wanted[slot.ruleKey] ?? (wasShared ? firstWanted : nil) else { continue }
+                let (baseline, note) = capture(read(slot))
+                store.setWallpaperSlot(WallpaperSlot(applied: choice, baseline: baseline,
+                    label: slot.label, note: note, confirmed: false), forKey: slot.key)
+                preparedBaselines.insert(slot.key)
+            }
+        }
         for slot in slots {
             guard !Task.isCancelled else { break }
-            let want: WallpaperChoice?
-            if let cached = wanted[slot.ruleKey] {
-                want = cached
-            } else {
-                want = desired(slot.ruleKey).flatMap { store.wallpaperFileExists($0) ? $0 : nil }
-                wanted[slot.ruleKey] = want
-            }
+            let want = wanted[slot.ruleKey]
             let entry = store.wallpaperSlots[slot.key]
             if let want {
-                await apply(want, to: slot, entry: entry, report: &report)
+                await apply(want, to: slot, entry: entry, preparedBaseline: preparedBaselines.contains(slot.key), report: &report)
             } else if let entry {
                 await putBack(entry, on: slot, report: &report)
             }
@@ -141,7 +153,7 @@ final class WallpaperSync {
 
     // MARK: - Per slot
 
-    private func apply(_ want: WallpaperChoice, to slot: Slot, entry: WallpaperSlot?,
+    private func apply(_ want: WallpaperChoice, to slot: Slot, entry: WallpaperSlot?, preparedBaseline: Bool,
                        report: inout WallpaperSyncReport) async {
         if let entry, entry.applied == want, entry.confirmed {
             // DockShift's write stands — or the user picked something else since, which sticks.
@@ -187,7 +199,7 @@ final class WallpaperSync {
             // It may still land: recorded as DockShift's (with what it replaces) until a pass sees it.
             record.confirmed = false
             store.setWallpaperSlot(record, forKey: slot.key)
-            if entry?.confirmed != false { needsRecheck = true }
+            if preparedBaseline || entry?.confirmed != false { needsRecheck = true }
             report.failed.append("\(slot.label): macOS hasn't confirmed the new wallpaper yet")
         case .deferred:
             report.deferred.append(slot.label)

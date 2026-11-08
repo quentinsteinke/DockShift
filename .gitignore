@@ -6,3 +6,5 @@ DockShift/DockShift.entitlements
 __pycache__/
 build-*.log
 fixture-prepare.log
+RuneUI/target/
+build-rune.log
