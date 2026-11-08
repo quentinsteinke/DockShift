@@ -56,7 +56,7 @@ A **profile** is a Dock layout plus a wallpaper. Either half can be left empty, 
 (or Default) fills it in.
 
 - Arrange your Dock (and wallpaper) the way you want them, then choose
-  **Create Profile from Current Setup…** (or **New Profile** in the sidebar).
+  **New profile** in the sidebar and leave **Start with my current setup** enabled.
 - On a profile's page you can **Capture Current Dock**, **Choose Image…** for the wallpaper,
   **Use Current Wallpaper**, and set the placement.
 - In **Profile Studio**, select an app to move it left or right or remove it. **Add app** opens
@@ -152,7 +152,7 @@ Source builds without a configured signing key show that updates are not configu
 
 ## Uninstall
 
-1. Menu › **Restore Original Dock & Wallpaper…**
+1. Menu bar controls › **Restore original…**
 2. Remove DockShift's filter from each Focus in **System Settings › Focus**.
 3. Quit DockShift, delete it from Applications, and delete `~/Library/Application Support/DockShift`.
 
