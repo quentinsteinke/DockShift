@@ -161,6 +161,15 @@ final class RuneHost: NSView, @MainActor NSTextInputClient {
         } else { sendKey(key, event.modifierFlags) }
         return true
     }
+    @objc func copy(_ sender: Any?) { sendKey("c", .command) }
+    @objc func cut(_ sender: Any?) { sendKey("x", .command) }
+    override func selectAll(_ sender: Any?) { sendKey("a", .command) }
+    @objc func undo(_ sender: Any?) { sendKey("z", .command) }
+    @objc func paste(_ sender: Any?) {
+        if let value = NSPasteboard.general.string(forType: .string), let handle {
+            value.withCString { runeText(handle, $0) }; needsFrames = true
+        }
+    }
     private func sendKey(_ key: String, _ flags: NSEvent.ModifierFlags = []) {
         guard let handle else { return }
         let mods: UInt32 = (flags.contains(.shift) ? 1 : 0) | (flags.contains(.command) ? 2 : 0) | (flags.contains(.option) ? 4 : 0) | (flags.contains(.control) ? 8 : 0)
@@ -192,8 +201,22 @@ final class RuneHost: NSView, @MainActor NSTextInputClient {
         return window.convertToScreen(convert(bounds, to: nil))
     }
     override func doCommand(by selector: Selector) {
-        let commands = ["insertNewline:": "Return", "insertTab:": "Tab", "insertBacktab:": "Tab", "deleteBackward:": "Backspace", "deleteForward:": "Delete", "moveLeft:": "Left", "moveRight:": "Right", "moveUp:": "Up", "moveDown:": "Down", "cancelOperation:": "Escape", "moveToBeginningOfLine:": "Home", "moveToEndOfLine:": "End"]
-        if let key = commands[NSStringFromSelector(selector)] { sendKey(key, NSApp.currentEvent?.modifierFlags ?? []) }
+        let commands = ["insertNewline:": "Return", "insertTab:": "Tab", "insertBacktab:": "Tab",
+            "deleteBackward:": "Backspace", "deleteForward:": "Delete", "deleteWordBackward:": "Backspace", "deleteWordForward:": "Delete",
+            "deleteToBeginningOfLine:": "Backspace", "deleteToEndOfLine:": "Delete",
+            "moveLeft:": "Left", "moveRight:": "Right", "moveUp:": "Up", "moveDown:": "Down",
+            "moveLeftAndModifySelection:": "Left", "moveRightAndModifySelection:": "Right", "moveUpAndModifySelection:": "Up", "moveDownAndModifySelection:": "Down",
+            "moveWordLeft:": "Left", "moveWordRight:": "Right", "moveWordLeftAndModifySelection:": "Left", "moveWordRightAndModifySelection:": "Right",
+            "cancelOperation:": "Escape", "moveToBeginningOfLine:": "Home", "moveToEndOfLine:": "End",
+            "moveToBeginningOfLineAndModifySelection:": "Home", "moveToEndOfLineAndModifySelection:": "End"]
+        let name = NSStringFromSelector(selector)
+        if let key = commands[name] {
+            var flags = NSApp.currentEvent?.modifierFlags ?? []
+            if name.contains("AndModifySelection") || name == "insertBacktab:" { flags.insert(.shift) }
+            if name.contains("Word") { flags.insert(.option) }
+            if name.hasPrefix("deleteTo") { flags.insert(.command) }
+            sendKey(key, flags)
+        }
     }
 
     private func refreshAccessibility(_ handle: UnsafeMutableRawPointer) {

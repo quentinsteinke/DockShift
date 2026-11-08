@@ -78,8 +78,8 @@ final class WallpaperSync {
         // before issuing any write. The pending records also survive cancellation or a crash
         // between slots, so collateral changes can still be put back on the next pass.
         var preparedBaselines: Set<String> = []
+        let wasShared = service.showOnAllSpaces() == true
         if let firstWanted = slots.compactMap({ wanted[$0.ruleKey] }).first {
-            let wasShared = service.showOnAllSpaces() == true
             for slot in slots where store.wallpaperSlots[slot.key] == nil && reachable(slot) {
                 guard let choice = wanted[slot.ruleKey] ?? (wasShared ? firstWanted : nil) else { continue }
                 let (baseline, note) = capture(read(slot))
@@ -88,15 +88,26 @@ final class WallpaperSync {
                 preparedBaselines.insert(slot.key)
             }
         }
-        for slot in slots {
+        var mayHaveChangedGlobalPicture = false
+        for slot in slots where wanted[slot.ruleKey] != nil {
             guard !Task.isCancelled else { break }
-            let want = wanted[slot.ruleKey]
+            guard let want = wanted[slot.ruleKey] else { continue }
             let entry = store.wallpaperSlots[slot.key]
-            if let want {
-                await apply(want, to: slot, entry: entry, preparedBaseline: preparedBaselines.contains(slot.key), report: &report)
-            } else if let entry {
-                await putBack(entry, on: slot, report: &report)
+            let issued = await apply(want, to: slot, entry: entry, preparedBaseline: preparedBaselines.contains(slot.key), report: &report)
+            if issued || store.wallpaperSlots[slot.key]?.confirmed == true {
+                preparedBaselines.remove(slot.key)
             }
+            if wasShared && issued { mayHaveChangedGlobalPicture = true }
+        }
+        // A captured baseline is not ownership if no write could have changed that slot.
+        // Keep collateral records only after a global write was issued. Restore unassigned
+        // slots after writes, so an earlier visible slot cannot lose its baseline too soon.
+        if !mayHaveChangedGlobalPicture {
+            for key in preparedBaselines { store.setWallpaperSlot(nil, forKey: key) }
+        }
+        for slot in slots where wanted[slot.ruleKey] == nil {
+            guard !Task.isCancelled else { break }
+            if let entry = store.wallpaperSlots[slot.key] { await putBack(entry, on: slot, report: &report) }
         }
         if report.written + report.restored > 0 || !report.failed.isEmpty {
             Log.wallpaper.notice("Pass: \(report.written) written, \(report.restored) put back, \(report.deferred.count) deferred, \(report.failed.count) failed\(self.needsRecheck ? " (re-check wanted)" : "", privacy: .public)")
@@ -154,15 +165,15 @@ final class WallpaperSync {
     // MARK: - Per slot
 
     private func apply(_ want: WallpaperChoice, to slot: Slot, entry: WallpaperSlot?, preparedBaseline: Bool,
-                       report: inout WallpaperSyncReport) async {
+                       report: inout WallpaperSyncReport) async -> Bool {
         if let entry, entry.applied == want, entry.confirmed {
             // DockShift's write stands — or the user picked something else since, which sticks.
             relabel(entry, on: slot)
-            return
+            return false
         }
         guard reachable(slot) else {
             report.deferred.append(slot.label)
-            return
+            return false
         }
         let target = picture(of: want)
         let current = read(slot)
@@ -178,7 +189,7 @@ final class WallpaperSync {
             record.label = slot.label
             record.confirmed = true
             store.setWallpaperSlot(record, forKey: slot.key)
-            return
+            return false
         }
         // The baseline is what the slot shows now — unless that is DockShift's own picture, can't be
         // read, or may be either (an unconfirmed write): then the recorded one still holds.
@@ -195,17 +206,20 @@ final class WallpaperSync {
             store.setWallpaperSlot(record, forKey: slot.key)
             report.written += 1
             Log.wallpaper.notice("\(slot.label, privacy: .public) → \(want.displayName, privacy: .public)")
+            return true
         case .unconfirmed:
             // It may still land: recorded as DockShift's (with what it replaces) until a pass sees it.
             record.confirmed = false
             store.setWallpaperSlot(record, forKey: slot.key)
             if preparedBaseline || entry?.confirmed != false { needsRecheck = true }
             report.failed.append("\(slot.label): macOS hasn't confirmed the new wallpaper yet")
+            return true
         case .deferred:
             report.deferred.append(slot.label)
         case .failed(let reason):
             report.failed.append("\(slot.label): \(reason)")
         }
+        return false
     }
 
     /// No rule wants the slot any more (or Restore Original): put back what it showed before

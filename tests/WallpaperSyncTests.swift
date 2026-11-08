@@ -18,6 +18,7 @@ enum SlotWriteResult { case written, unconfirmed, deferred, failed(String) }
     var writes = 0
     var sharedPicture = false
     var unconfirmed = false
+    var rejected = false
     var pictures: [UInt64: String] = [1: "/original.png", 2: "/original.png"]
     var canPreloadSpaces: Bool { true }
     func showOnAllSpaces() -> Bool? { sharedPicture }
@@ -34,6 +35,7 @@ enum SlotWriteResult { case written, unconfirmed, deferred, failed(String) }
     func isUnchanged(source: String, copy: String) -> Bool { true }
     func writeSlot(_ picture: SlotPicture, displayID: CGDirectDisplayID, spaceUUID: String?, spaceID: UInt64?, screen: NSScreen?, isVisible: Bool) async -> SlotWriteResult {
         writes += 1
+        if rejected { return .failed("Rejected before changing anything") }
         if unconfirmed { return .unconfirmed }
         // Simulate macOS replacing the global wallpaper before it creates per-Space records.
         if sharedPicture && writes == 1 { pictures = pictures.mapValues { _ in picture.path } }
@@ -64,6 +66,27 @@ enum SlotWriteResult { case written, unconfirmed, deferred, failed(String) }
         for slot in Store.shared.wallpaperSlots.values {
             precondition(slot.baseline?.sourcePath == "/original.png", "Every baseline must precede the global write")
         }
-        print("3 wallpaper regression checks passed; no desktop settings changed")
+        Store.shared.wallpaperSlots = [:]
+        service.sharedPicture = false
+        service.rejected = true
+        service.writes = 0
+        service.pictures = [1: "/original.png", 2: "/original.png"]
+        _ = await WallpaperSync.shared.sync(snapshot: snapshot) { _ in desired }
+        precondition(Store.shared.wallpaperSlots.isEmpty, "Rejected writes must discard unused ownership")
+        service.pictures = [1: "/user-choice.png", 2: "/user-choice.png"]
+        _ = await WallpaperSync.shared.sync(snapshot: snapshot) { _ in nil }
+        precondition(service.pictures.values.allSatisfy { $0 == "/user-choice.png" }, "A rejected write must not own a later user choice")
+        service.rejected = false
+        service.sharedPicture = true
+        service.writes = 0
+        let original = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try! Data("Mock original".utf8).write(to: original)
+        defer { try? FileManager.default.removeItem(at: original) }
+        service.pictures = [1: original.path, 2: original.path]
+        _ = await WallpaperSync.shared.sync(snapshot: snapshot) { key in key == "SECOND" ? desired : nil }
+        precondition(service.pictures[1] == original.path, "Restore an unassigned visible slot after the hidden slot changes the global wallpaper")
+        precondition(service.pictures[2] == "/tmp/desired.png")
+        precondition(Store.shared.wallpaperSlots.count == 1)
+        print("5 wallpaper regression checks passed; no desktop settings changed")
     }
 }
